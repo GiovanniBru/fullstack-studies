@@ -1,40 +1,50 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, inject, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule], // Necessário para o [(ngModel)] funcionar
+  imports: [FormsModule],
   template: `
     <div style="padding: 30px; font-family: Arial, sans-serif;">
-      <h1>📋 Minhas Tarefas - Angular 20</h1>
+      <h1>📋 Gerenciador Full Stack</h1>
       
-      <div style="margin-bottom: 20px;">
-        <input [(ngModel)]="novaTarefa" placeholder="O que vamos programar hoje?">
-        <button (click)="adicionar()">Adicionar</button>
-      </div>
+      <input [(ngModel)]="novaTarefa" placeholder="Digite a tarefa para o Java...">
+      <button (click)="adicionar()">Enviar para o Backend</button>
 
-      <ul style="list-style: none; padding: 0;">
-        @for (item of lista(); track item) {
-          <li style="background: #f4f4f4; margin: 5px 0; padding: 10px; border-left: 5px solid #007bff;">
-            {{ item }}
-          </li>
-        } @empty {
-          <p>Nenhuma tarefa na lista. Aproveite o café! ☕</p>
+      <ul>
+        @for (item of lista(); track item.id) {
+          <li>{{ item.descricao }}</li>
         }
       </ul>
     </div>
   `
 })
-export class AppComponent {
-  novaTarefa = signal('');
-  lista = signal<string[]>([]);
+export class AppComponent implements OnInit {
+  private http = inject(HttpClient); // "Injeta" o serviço de comunicação
+  novaTarefa = '';
+  lista = signal<any[]>([]);
+
+  // Quando o app inicia, ele busca as tarefas do Java
+  ngOnInit() {
+    this.carregar();
+  }
+
+  carregar() {
+    this.http.get<any[]>('http://localhost:8080/api/tarefas')
+      .subscribe(dados => this.lista.set(dados));
+  }
 
   adicionar() {
-    if (this.novaTarefa().trim()) {
-      // No Angular 20 usamos o .update para atualizar Signals
-      this.lista.update(atual => [...atual, this.novaTarefa()]);
-      this.novaTarefa.set(''); // Limpa o input
-    }
+    if (!this.novaTarefa.trim()) return;
+
+    const payload = { descricao: this.novaTarefa };
+    
+    this.http.post('http://localhost:8080/api/tarefas', payload)
+      .subscribe(() => {
+        this.carregar(); // Recarrega a lista após salvar no banco
+        this.novaTarefa = '';
+      });
   }
 }
